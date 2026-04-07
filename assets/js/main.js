@@ -1,132 +1,143 @@
-// Mobile Navigation Toggle
-document.addEventListener('DOMContentLoaded', function() {
-    const hamburger = document.querySelector('.hamburger');
-    const navMenu = document.querySelector('.nav-menu');
+'use strict';
 
-    if (hamburger && navMenu) {
-        hamburger.addEventListener('click', function() {
-            navMenu.classList.toggle('active');
-            hamburger.classList.toggle('active');
-        });
+/* ----------------------------------------------------------------
+   1. NAV — glass blur on scroll
+---------------------------------------------------------------- */
+(function initNav() {
+  const nav = document.querySelector('nav');
+  if (!nav) return;
 
-        // Close menu when clicking on a link
-        const navLinks = document.querySelectorAll('.nav-menu a');
-        navLinks.forEach(link => {
-            link.addEventListener('click', function() {
-                navMenu.classList.remove('active');
-                hamburger.classList.remove('active');
-            });
-        });
+  const toggleScrolled = () => {
+    nav.classList.toggle('scrolled', window.scrollY > 20);
+  };
 
-        // Close menu when clicking outside
-        document.addEventListener('click', function(event) {
-            const isClickInsideNav = navMenu.contains(event.target);
-            const isClickOnHamburger = hamburger.contains(event.target);
-            
-            if (!isClickInsideNav && !isClickOnHamburger && navMenu.classList.contains('active')) {
-                navMenu.classList.remove('active');
-                hamburger.classList.remove('active');
-            }
-        });
+  window.addEventListener('scroll', toggleScrolled, { passive: true });
+  toggleScrolled();
+})();
+
+/* ----------------------------------------------------------------
+   2. HAMBURGER — mobile nav toggle
+---------------------------------------------------------------- */
+(function initHamburger() {
+  const hamburger = document.querySelector('.hamburger');
+  const mobileNav = document.querySelector('.mobile-nav');
+  if (!hamburger || !mobileNav) return;
+
+  function openNav() {
+    hamburger.setAttribute('aria-expanded', 'true');
+    mobileNav.classList.add('open');
+    mobileNav.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('no-scroll');
+  }
+
+  function closeNav() {
+    hamburger.setAttribute('aria-expanded', 'false');
+    mobileNav.classList.remove('open');
+    mobileNav.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('no-scroll');
+  }
+
+  hamburger.addEventListener('click', () => {
+    const isOpen = hamburger.getAttribute('aria-expanded') === 'true';
+    isOpen ? closeNav() : openNav();
+  });
+
+  // Close on link click
+  mobileNav.querySelectorAll('a').forEach(link => {
+    link.addEventListener('click', closeNav);
+  });
+
+  // Escape key
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closeNav();
+  });
+
+  // FIXED outside click
+  document.addEventListener('click', e => {
+    const isOpen = hamburger.getAttribute('aria-expanded') === 'true';
+    if (!isOpen) return;
+
+    if (!mobileNav.contains(e.target) && !hamburger.contains(e.target)) {
+      closeNav();
     }
+  });
+})();
 
-    // Smooth scrolling for anchor links
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-        anchor.addEventListener('click', function(e) {
-            const href = this.getAttribute('href');
-            if (href !== '#' && href.length > 1) {
-                const target = document.querySelector(href);
-                if (target) {
-                    e.preventDefault();
-                    target.scrollIntoView({
-                        behavior: 'smooth',
-                        block: 'start'
-                    });
-                }
-            }
-        });
+/* ----------------------------------------------------------------
+   3. SCROLL REVEAL
+---------------------------------------------------------------- */
+(function initScrollReveal() {
+  const targets = document.querySelectorAll('.reveal, .reveal-left, .reveal-right, .stagger');
+  if (!targets.length) return;
+
+  if (!('IntersectionObserver' in window)) {
+    targets.forEach(el => el.classList.add('visible'));
+    return;
+  }
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        entry.target.classList.add('visible');
+        observer.unobserve(entry.target);
+      }
     });
+  }, {
+    threshold: 0.1,
+    rootMargin: '0px 0px -48px 0px'
+  });
 
-    // FAQ Accordion
-    const faqItems = document.querySelectorAll('.faq-item');
-    faqItems.forEach(item => {
-        const question = item.querySelector('.faq-question');
-        if (question) {
-            question.addEventListener('click', function() {
-                const isActive = item.classList.contains('active');
-                
-                // Close all other FAQ items
-                faqItems.forEach(otherItem => {
-                    if (otherItem !== item) {
-                        otherItem.classList.remove('active');
-                    }
-                });
-                
-                // Toggle current item
-                if (isActive) {
-                    item.classList.remove('active');
-                } else {
-                    item.classList.add('active');
-                }
-            });
-        }
+  targets.forEach(el => observer.observe(el));
+})();
+
+/* ----------------------------------------------------------------
+   4. ACTIVE NAV LINKS
+---------------------------------------------------------------- */
+(function initActiveNav() {
+  const sections = document.querySelectorAll('section[id]');
+  const navLinks = document.querySelectorAll('.nav-links a');
+  if (!sections.length || !navLinks.length) return;
+
+  if (!('IntersectionObserver' in window)) return;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (!entry.isIntersecting) return;
+
+      navLinks.forEach(link => {
+        link.classList.toggle(
+          'active',
+          link.getAttribute('href') === '#' + entry.target.id
+        );
+      });
     });
+  }, {
+    threshold: 0.2
+  });
 
-    // Contact Form Handling
-    const contactForm = document.getElementById('contactForm');
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Get form data
-            const formData = new FormData(contactForm);
-            const data = Object.fromEntries(formData);
-            
-            // Here you would typically send the data to a server
-            // For now, we'll just show an alert
-            alert('Thank you for your message! We will get back to you soon.');
-            
-            // Reset form
-            contactForm.reset();
-        });
-    }
+  sections.forEach(s => observer.observe(s));
+})();
 
-    // Navbar scroll effect
-    const navbar = document.querySelector('.navbar');
-    
-    if (navbar) {
-        window.addEventListener('scroll', function() {
-            const currentScroll = window.pageYOffset;
-            
-            if (currentScroll > 50) {
-                navbar.classList.add('scrolled');
-            } else {
-                navbar.classList.remove('scrolled');
-            }
-        });
-    }
+/* ----------------------------------------------------------------
+   5. SMOOTH SCROLL (FIXED SCOPE)
+---------------------------------------------------------------- */
+(function initSmoothScroll() {
+  document.querySelectorAll('.nav-links a[href^="#"], .mobile-nav a[href^="#"]')
+    .forEach(anchor => {
+      anchor.addEventListener('click', function(e) {
+        const target = document.querySelector(this.getAttribute('href'));
+        if (!target) return;
 
-    // Intersection Observer for fade-in animations
-    const observerOptions = {
-        threshold: 0.1,
-        rootMargin: '0px 0px -50px 0px'
-    };
+        e.preventDefault();
 
-    const observer = new IntersectionObserver(function(entries) {
-        entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                entry.target.style.opacity = '1';
-                entry.target.style.transform = 'translateY(0)';
-            }
-        });
-    }, observerOptions);
+        const navH = parseInt(
+          getComputedStyle(document.documentElement)
+            .getPropertyValue('--nav-h')
+        ) || 72;
 
-    // Observe elements for animation
-    const animateElements = document.querySelectorAll('.product-card, .value-item, .benefit-item, .team-member, .mv-card, .value-detail, .contact-item');
-    animateElements.forEach((el, index) => {
-        el.style.opacity = '0';
-        el.style.transform = 'translateY(30px)';
-        el.style.transition = `opacity 0.6s ease ${index * 0.1}s, transform 0.6s ease ${index * 0.1}s`;
-        observer.observe(el);
+        const top = target.getBoundingClientRect().top + window.scrollY - navH;
+
+        window.scrollTo({ top, behavior: 'smooth' });
+      });
     });
-});
+})();
