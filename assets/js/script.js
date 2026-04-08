@@ -1,145 +1,85 @@
-// Smooth scrolling for in-page navigation links only
-document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-    anchor.addEventListener('click', function (e) {
-        const href = this.getAttribute('href');
+'use strict';
 
-        // Ignore placeholder links like "#".
-        if (!href || href === '#') {
-            return;
-        }
-
-        const target = document.querySelector(href);
-        if (!target) {
-            return;
-        }
-
-        e.preventDefault();
-        target.scrollIntoView({
-            behavior: 'smooth',
-            block: 'start'
-        });
-    });
-});
-
-// Intersection Observer for animation on scroll
-const observerOptions = {
-    threshold: 0.1,
-    rootMargin: '0px 0px -100px 0px'
+const EMAILJS_CONFIG = {
+  serviceId:  'YOUR_SERVICE_ID',
+  templateId: 'YOUR_TEMPLATE_ID',
+  publicKey:  'YOUR_PUBLIC_KEY',
 };
 
-const observer = new IntersectionObserver((entries) => {
-    entries.forEach(entry => {
-        if (entry.isIntersecting) {
-            entry.target.style.opacity = '1';
-            entry.target.style.transform = 'translateY(0)';
-        }
-    });
-}, observerOptions);
+(function initContactForm() {
+  const form = document.getElementById('contactForm');
+  const msgEl = document.getElementById('form-message');
+  const submitBtn = form ? form.querySelector('button[type="submit"]') : null;
 
-// Observe all animated elements
-document.querySelectorAll('.service-card, .project-card').forEach(el => {
-    observer.observe(el);
-});
+  if (!form || !msgEl || !submitBtn) return;
 
-// Hamburger menu toggle functionality
-const hamburger = document.querySelector('.hamburger');
-const navLinks = document.querySelector('.nav-links');
+  // Init EmailJS
+  if (typeof emailjs !== 'undefined' && EMAILJS_CONFIG.publicKey !== 'YOUR_PUBLIC_KEY') {
+    emailjs.init(EMAILJS_CONFIG.publicKey);
+  }
 
-if (hamburger) {
-    hamburger.addEventListener('click', () => {
-        hamburger.classList.toggle('active');
-        if (navLinks) {
-            navLinks.classList.toggle('active');
-        }
-    });
-}
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    clearMessage();
 
-// Close mobile menu when a link is clicked
-const navLinkItems = document.querySelectorAll('.nav-links a, .hero-buttons a');
-navLinkItems.forEach(link => {
-    link.addEventListener('click', () => {
-        if (hamburger && navLinks) {
-            hamburger.classList.remove('active');
-            navLinks.classList.remove('active');
-        }
-    });
-});
+    const name = form.user_name?.value.trim() || '';
+    const email = form.user_email?.value.trim() || '';
+    const message = form.message?.value.trim() || '';
 
-// Close menu when clicking outside
-document.addEventListener('click', (e) => {
-    if (!e.target.closest('nav') && hamburger && navLinks) {
-        hamburger.classList.remove('active');
-        navLinks.classList.remove('active');
+    if (!name) return error('Please enter your name.', form.user_name);
+    if (!email || !isValidEmail(email)) return error('Invalid email address.', form.user_email);
+    if (!message) return error('Message cannot be empty.', form.message);
+
+    setLoading(true);
+
+    try {
+      if (typeof emailjs !== 'undefined' && EMAILJS_CONFIG.serviceId !== 'YOUR_SERVICE_ID') {
+        await emailjs.sendForm(
+          EMAILJS_CONFIG.serviceId,
+          EMAILJS_CONFIG.templateId,
+          form
+        );
+      } else {
+        await delay(1000); // demo
+      }
+
+      success("✓ Message sent successfully.");
+      form.reset();
+
+    } catch (err) {
+      console.error(err);
+      error('Something went wrong. Try again later.');
     }
-});
 
-// Contact Form Handling with EmailJS
-// 
-// SETUP INSTRUCTIONS:
-// 1. Go to https://www.emailjs.com/ and create a free account
-// 2. Create an Email Service (Gmail, Outlook, etc.) and get your SERVICE_ID
-// 3. Create an Email Template and get your TEMPLATE_ID
-// 4. Get your Public Key from EmailJS Dashboard > Account > API Keys
-// 5. Replace the placeholders below with your actual values:
-//    - YOUR_PUBLIC_KEY: Your EmailJS Public Key
-//    - YOUR_SERVICE_ID: Your Email Service ID
-//    - YOUR_TEMPLATE_ID: Your Email Template ID
-//
-// Template variables: {{user_name}}, {{user_email}}, {{subject}}, {{message}}
-// In EmailJS template set: Subject = "Website contact: {{subject}}"
-// and Reply To = {{user_email}} so replying goes to the visitor.
-//
-(function() {
-    // Initialize EmailJS (you'll need to replace with your public key)
-    emailjs.init("N_WgNrdXCBsdy2gVB"); // Replace with your EmailJS Public Key
-    
-    const contactForm = document.getElementById('contactForm');
-    const formMessage = document.getElementById('form-message');
-    
-    if (contactForm) {
-        contactForm.addEventListener('submit', function(e) {
-            e.preventDefault();
-            
-            // Show loading state
-            const submitButton = contactForm.querySelector('button[type="submit"]');
-            const originalText = submitButton.textContent;
-            submitButton.textContent = 'Sending...';
-            submitButton.disabled = true;
-            formMessage.textContent = '';
-            formMessage.className = 'form-message';
-            
-            // Build template params from form (ensures subject is never empty)
-            const templateParams = {
-                user_name: contactForm.user_name.value.trim(),
-                user_email: contactForm.user_email.value.trim(),
-                subject: contactForm.subject.value.trim() || 'Contact from website',
-                message: contactForm.message.value.trim()
-            };
+    setLoading(false);
+  });
 
-            // Send email using EmailJS (use send so we control subject & params)
-            emailjs.send('service_arw52j8', 'template_wqegfez', templateParams)
-                .then(function() {
-                    // Success
-                    formMessage.textContent = 'Thank you! Your message has been sent successfully.';
-                    formMessage.className = 'form-message success';
-                    contactForm.reset();
-                    submitButton.textContent = originalText;
-                    submitButton.disabled = false;
-                    
-                    // Hide message after 5 seconds
-                    setTimeout(() => {
-                        formMessage.textContent = '';
-                        formMessage.className = 'form-message';
-                    }, 5000);
-                }, function(error) {
-                    // Error
-                    formMessage.textContent = 'Sorry, there was an error sending your message. Please try again or contact us directly.';
-                    formMessage.className = 'form-message error';
-                    submitButton.textContent = originalText;
-                    submitButton.disabled = false;
-                    
-                    console.error('EmailJS Error:', error);
-                });
-        });
-    }
+  function setLoading(state) {
+    submitBtn.disabled = state;
+    submitBtn.textContent = state ? 'Sending…' : 'Send Message';
+  }
+
+  function success(msg) {
+    msgEl.textContent = msg;
+    msgEl.className = 'form-message success';
+  }
+
+  function error(msg, input) {
+    msgEl.textContent = msg;
+    msgEl.className = 'form-message error';
+    input?.focus();
+  }
+
+  function clearMessage() {
+    msgEl.textContent = '';
+    msgEl.className = 'form-message';
+  }
+
+  function isValidEmail(email) {
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+  }
+
+  function delay(ms) {
+    return new Promise(res => setTimeout(res, ms));
+  }
 })();
